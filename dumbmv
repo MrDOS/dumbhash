@@ -1,0 +1,34 @@
+#! /usr/bin/env python3
+
+import os
+import sys
+
+def load_hashes(file):
+    with open(file, 'r') as f:
+        return {name[0]: name[1] for name in [name.strip().split(' ', 1) for name in f.readlines()]}
+
+def main(args):
+    sources = load_hashes(args[1])
+    targets = load_hashes(args[2])
+
+    for hash in sources:
+        if not hash in targets:
+            #print(f'No new name for "{sources[hash]}".')
+            continue
+
+        if sources[hash] == targets[hash]:
+            #print(f'"{sources[hash]}" is already named correctly.')
+            continue
+
+        if not os.access(sources[hash], os.R_OK):
+            print(f'"{sources[hash]}" doesn\'t exist or isn\'t readable. Maybe it\'s been renamed already.', file=sys.stderr)
+            continue
+
+        print(f'Renaming "{sources[hash]}" to "{targets[hash]}".')
+        try:
+            os.rename(sources[hash], targets[hash])
+        except OSError as e:
+            print(f'Failure renaming "{sources[hash]}" to "{targets[hash]}": {e}', file=sys.stderr)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
