@@ -1,15 +1,34 @@
 #! /usr/bin/env python3
 
+import argparse
 import os
 import sys
+
+__version__ = '1.0.0'
 
 def load_hashes(file):
     with open(file, 'r') as f:
         return {name[0]: name[1] for name in [name.strip().split(' ', 1) for name in f.readlines()]}
 
 def main(args):
-    sources = load_hashes(args[1])
-    targets = load_hashes(args[2])
+    parser = argparse.ArgumentParser(description='Rename files by hash.')
+    parser.add_argument('sources')
+    parser.add_argument('targets')
+    parser.add_argument('--version',
+                        action='version',
+                        version=f'%(prog)s {__version__}')
+    args = parser.parse_args()
+
+    if not os.access(args.sources, os.R_OK):
+        parser.error(f'sources file "{args.sources}" doesn\'t exist or '
+                   + 'isn\'t readable.')
+
+    if not os.access(args.targets, os.R_OK):
+        parser.error(f'targets file "{args.targets}" doesn\'t exist or '
+                   + 'isn\'t readable.')
+
+    sources = load_hashes(args.sources)
+    targets = load_hashes(args.targets)
 
     for hash in sources:
         if not hash in targets:
