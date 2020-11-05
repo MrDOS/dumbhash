@@ -1,0 +1,85 @@
+#! /usr/bin/env python3
+
+import argparse
+import os
+import sys
+
+__version__ = '1.0.0'
+
+def load_hashes(file):
+    with open(file, 'r') as f:
+        return {name[0]: name[1] for name in [name.strip().split('  ', 1) for name in f.readlines()]}
+
+def main(args):
+    parser = argparse.ArgumentParser(description='Link files by hash.')
+    parser.add_argument('inputs', nargs='+')
+    parser.add_argument('-d', '--dry-run',
+                        action='store_true',
+                        default=False,
+                        help="Don't actually link anything, just preview "
+                           + "what would normally be done.")
+    parser.add_argument('--version',
+                        action='version',
+                        version=f'%(prog)s {__version__}')
+    args = parser.parse_args()
+
+    hashes = {}
+    for input_file in args.inputs:
+        if not os.access(input_file, os.R_OK):
+            parser.error(f'input file "{input_file}" doesn\'t exist or isn\'t '
+                       + ' readable.')
+
+        for hash, file in load_hashes(input_file).items():
+            if not os.access(file, os.R_OK):
+                print(f'"{file}" doesn\'t exist or isn\'t readable. Maybe it\'s been renamed already.', file=sys.stderr)
+                continue
+
+            if not hash in hashes:
+                hashes[hash] = []
+            hashes[hash].append((file, os.stat(file)))
+
+    for files in hashes.values():
+        # The first file in the list of files is not necessarily the original
+        # until after we've sorted them by inode. But we want to sanity-check
+        # the length of the input before that, so we'll grab the name of the
+        # first file (_not_ known to be the original file yet) for debugging.
+        #first_file = files[0][0]
+
+        # Skip unique files.
+        if len(files) == 1:
+            #print(f'"{first_file}" is already unique.')
+            continue
+
+        # Skip files where all names already point to the same inode.
+        if len({file[1].st_ino for file in files}) == 1:
+            #print(f'"{first_file}" has already been fully cross-linked.')
+            continue
+
+        # We want to keep the lowest inode, and throw out the rest.
+        files.sort(key=lambda file: file[1].st_ino)
+        # We want the modification time of the one inode we're keeping to
+        # reflect the oldest known modification time for this data.
+        mtime = sorted([file[1].st_mtime for file in files])[0]
+        # Similarly, we want the access time of the retained inode to be the
+        # most-recent known access time.
+        atime = sorted([file[1].st_atime for file in files])[-1]
+
+        original = files[0][0]
+        duplicates = '", "'.join([file[0] for file in files[1:]])
+        print(f'Linking "{original}" to "{duplicates}".')
+
+        if not args.dry_run:
+            for duplicate in [file[0] for file in files[1:]]:
+                try:
+                    os.unlink(duplicate)
+                    os.link(original, duplicate)
+                except OSError as e:
+                    print(f'Failure replacing "{duplicate}" with a link to "{original}": {e}', file=sys.stderr)
+
+            try:
+                os.utime(original, (atime, mtime))
+            except OSError as e:
+                print(f'Failure updating atime/mtime of "{original}": {e}', file=sys.stderr)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

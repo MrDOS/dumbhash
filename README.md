@@ -1,4 +1,4 @@
-# `dumbmv` and `dumbhash`
+# `dumbhash`, `dumbmv`, and `dumbln`
 
 I had two copies of a collection of large files
 (a library of TV episodes).
@@ -29,6 +29,34 @@ For example:
 
 Files missing from either side are ignored.
 
+`dumbln` came about later as the solution
+to a similar but slightly different problem:
+I had two copies of a collection of large files
+(a download directory and a media directory),
+and I wanted to [hard-link][hard link] duplicates to each other
+to reduce disk space.
+`dumbln` compares the hashes
+between one or more `dumbhash` listings
+and replaces all of the paths for duplicate data
+with links to the same inode.
+It will keep inode with the lowest number,
+and reset its mtime/atime to be the min/max
+of the mtimes/atimes of all of the duplicates.
+
+For example:
+
+    $ ./dumbhash downloads/* | tee downloads.txt
+    d8c0e766502bb5e19faaebd035d478ac  downloads/a.1080p.WEB-DL.DD5.1.h264-See
+    $ ./dumbhash media/* | tee media.txt
+    d8c0e766502bb5e19faaebd035d478ac  media/file-a
+    $ ./dumbln downloads.txt media.txt
+    Linking "downloads/a.1080p.WEB-DL.DD5.1.h264-See" to "media/file-a".
+
+Unique files are ignored,
+as are files where all paths already point to the same inode.
+
+[hard link]: https://en.wikipedia.org/wiki/Hard_link
+
 ## Known Issues
 
 Having identified the need for a rename operation,
@@ -48,6 +76,11 @@ This has two caveats:
 
 [os.move]: https://docs.python.org/3/library/os.html#os.rename
 [shutil.move]: https://docs.python.org/3/library/shutil.html#shutil.move
+
+If the same hash appears multiple times
+in either `dumbmv` input file,
+only the occurrence will be considered.
+`dumbln` shouldn't have this problem.
 
 ## FAQ
 
