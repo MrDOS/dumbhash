@@ -34,7 +34,7 @@ to a similar but slightly different problem:
 I had two copies of a collection of large files
 (a download directory and a media directory),
 and I wanted to [hard-link][hard link] duplicates to each other
-to reduce disk space.
+to reduce disk usage.
 `dumbln` compares the hashes
 between one or more `dumbhash` listings
 and replaces all of the paths for duplicate data
@@ -57,6 +57,24 @@ as are files where all paths already point to the same inode.
 
 [hard link]: https://en.wikipedia.org/wiki/Hard_link
 
+## Installation
+
+Put the `dumbhash`, `dumbln`, and `dumbmv` scripts somewhere on your `PATH`,
+and make sure they're marked as executable.
+
+    $ sudo install -v -m 0755 dumb* /usr/local/bin
+    install: dumbhash -> /usr/local/bin/dumbhash
+    install: dumbln -> /usr/local/bin/dumbln
+    install: dumbmv -> /usr/local/bin/dumbmv
+
+## Dependencies
+
+`dumbhash` is a POSIX shell script.
+It depends on `cut`, `dd`, and `md5sum`.
+
+`dumbmv` and `dumbln` are Python 3 scripts.
+They depend only on the Python standard library.
+
 ## Known Issues
 
 Having identified the need for a rename operation,
@@ -72,19 +90,20 @@ This has two caveats:
 * `os.rename()` only works when the source and destination
   are on the same filesystem.
   I specifically wanted to avoid accidental copying,
-  but you may need to use `shutil.move()` instead.
+  but you may need to modify the script to use `shutil.move()` instead.
 
-[os.move]: https://docs.python.org/3/library/os.html#os.rename
+[os.rename]: https://docs.python.org/3/library/os.html#os.rename
 [shutil.move]: https://docs.python.org/3/library/shutil.html#shutil.move
 
 If the same hash appears multiple times
 in either `dumbmv` input file,
-only the occurrence will be considered.
+only the last occurrence will be considered.
 `dumbln` shouldn't have this problem.
 
 ## FAQ
 
-**Why not just use the output of `md5sum(1)` directly?**
+**Why is `dumbhash` necessary?
+Why not just feed the output of standard `md5sum(1)` into `dumbmv`/`dumbln`?**
 
 Because these are big files,
 and my hard drives are slow,
@@ -93,11 +112,17 @@ and I'm impatient.
 **I have small files,
 and my hard drives are fast,
 and I'm patient.
-Can I use the output of `md5sum(1)` directly?**
+Can I feed the output of standard `md5sum(1)` into `dumbmv`/`dumbln`?**
 
-Yes, that should work correctly.
+Yes, that should work correctly,
+as `dumbhash` mimics the output format of `md5sum`.
+Similarly, you should be able to use the output of any other checksumming tool
+that produces the same output format:
+`sha256sum`, `b2sum`, etc.
 
 **MD5 hashes are not cryptographically secure!**
+
+That's not a question.
 
 They are fast, though,
 and when I'm only considering the first 512KB of the file anyway,
